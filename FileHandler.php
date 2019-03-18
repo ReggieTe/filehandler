@@ -48,6 +48,85 @@ class FileHandler {
             return false;
         }
     }
+
+    public static function fileExt($path=null){
+        if ($path != null) {
+            $result=!is_file($path) ? pathinfo($path) : false;
+            if($result!=false)
+            {
+                return $result['extension'];
+            }else{
+                return false;
+            }
+
+        } else {
+            return false;
+        }
+    }
+
+    public static function getContent($path=null){
+        if ($path != null) {
+            return is_file($path)? file_get_contents($path) : false;            
+
+        } else {
+            return false;
+        }
+    }
+
+
+    public static function strpos_recursive($haystack, $needle, $offset = 0, &$results = array()) {               
+        $offset = strpos($haystack, $needle, $offset);
+        if($offset === false) {
+            return $results;           
+        } else {
+            $results[] = $offset;
+            return self::strpos_recursive($haystack, $needle, ($offset + 1), $results);
+        }
+    }
+/**
+ * @
+ * 
+ */
+    public static function parseDir($findMe=null ,$filesDir=null,$plentyData=false){
+        /*
+        Potential Error :Fatal error: Maximum function nesting level of '256' reached, aborting! 
+            Fix :  ini_set('xdebug.max_nesting_level', 9999);
+            */
+        $files=array();        
+        if(is_dir($filesDir)&&$findMe!=null)
+        {
+            $files= FileHandler::dirContent($filesDir);
+            
+            foreach($files as $file => $value)
+            { 
+                $file=$filesDir."/".$file;
+                if(is_file($file))
+                {           
+                    echo "Searching : $file  for  '$findMe' \n";
+                    //load file and parser it for keyword
+                    $result=FileHandler::getContent($file);
+                    $found = FileHandler::strpos_recursive($result, $findMe);               
+                    if($found) {
+                        if($plentyData){
+                            foreach($found as $pos) {
+                                echo '+ Found "'.$findMe.'" in string "'.$file.'" at position <b>'.$pos.'</b><br />'."\n";
+                            }
+                        }
+                        else
+                        {
+                            echo "+ Found '$findMe'  in $file\n\n";
+                        }
+                            
+                   } else {
+                       echo "- Not Found'$findMe' in $file\n\n";
+                   }
+    
+           }
+
+       }
+       echo "Completed\n";
+    }
+    } 
 /**
  * 
  * @param string $path  path on the server where to create directory
@@ -69,7 +148,6 @@ class FileHandler {
     public static function iterateDir($path = null) {
         if ($path != null) {
             foreach (FileHandler::dirContent($path) as $name => $stats) {
-
 
                 if (array_search('.', str_split($name))) {
                     //delete file
