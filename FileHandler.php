@@ -48,19 +48,33 @@ class FileHandler {
             return false;
         }
     }
-
-    public static function fileExt($path=null){
-        if ($path != null) {
-            $result=!is_file($path) ? pathinfo($path) : false;
-            if($result!=false)
-            {
-                return $result['extension'];
-            }else{
-                return false;
+    public static function getDirContents($dir, &$results = array()){
+        if(is_dir($dir))
+        { 
+        $files = scandir($dir);
+    
+        foreach($files as $key => $value){
+            $path = realpath($dir.DIRECTORY_SEPARATOR.$value);
+            if(!is_dir($path)) {
+                $results[] = $path;
+            } else if($value != "." && $value != "..") {
+                self::getDirContents($path, $results);
+                $results[] = $path;
             }
+        }}
+    
+        return $results;
+    }
+    
+      
+    
+    public static function fileExt($path=null){
+        if ($path != null) {    
+        $extension =pathinfo($path);            
+        return array_key_exists("extension",$extension) ?$extension['extension']: false;          
 
         } else {
-            return false;
+          return false;
         }
     }
 
@@ -87,19 +101,19 @@ class FileHandler {
  * @
  * 
  */
-    public static function parseDir($findMe=null ,$filesDir=null,$plentyData=false){
+    public static function parseDir($findMe=null ,$files=array(),$plentyData=false){
         /*
         Potential Error :Fatal error: Maximum function nesting level of '256' reached, aborting! 
             Fix :  ini_set('xdebug.max_nesting_level', 9999);
             */
-        $files=array();        
-        if(is_dir($filesDir)&&$findMe!=null)
-        {
-            $files= FileHandler::dirContent($filesDir);
+//$files=array();        
+//if(is_dir($filesDir)&&$findMe!=null)
+       // {
+            //$files= FileHandler::dirContent($filesDir);
             
-            foreach($files as $file => $value)
+            foreach($files as $file)
             { 
-                $file=$filesDir."/".$file;
+                //$file=$filesDir."/".$file;
                 if(is_file($file))
                 {           
                     echo "Searching : $file  for  '$findMe' \n";
@@ -123,9 +137,10 @@ class FileHandler {
     
            }
 
-       }
-       echo "Completed\n";
+       //}
+     
     }
+    echo "Completed\n";
     } 
 /**
  * 
@@ -146,24 +161,109 @@ class FileHandler {
  * @return boolean
  */
     public static function iterateDir($path = null) {
-        if ($path != null) {
-            foreach (FileHandler::dirContent($path) as $name => $stats) {
+       
+        $files=array();
+       $dir=array();
+        if ($path != null&&is_dir($path)) {
+            foreach (self::dirContent($path) as $name => $stats) {
 
                 if (array_search('.', str_split($name))) {
-                    //delete file
-                    FileHandler::deleteSingleFiles($path . '/' . $name);
+                    //add file
+                   array_push($files,"$path/$name");
                 } else {
-                    //check for subdirectory
-                    //delete all files
-                    FileHandler::iterateDir($path . '/' . $name);
-                    //delete directory
-                    FileHandler::deleteSingleDir($path . '/' . $name);
+                    //add directory
+                    array_push($dir,"$path/$name");
                 }
             }
+
+            return ["files"=>$files,"dir"=>$dir];
         } else {
             return false;
         }
     }
+
+
+public static function extractZip($file=null)
+{
+            if(is_file($file)){
+                // get the absolute path to $file
+                $path = pathinfo(realpath($file), PATHINFO_DIRNAME);
+                $zip = new ZipArchive;
+                $res = $zip->open($file);
+                if ($res === TRUE) {
+                // extract it to the path we determined above
+                $zip->extractTo($path);
+                $zip->close();
+                unlink($file);
+                return true;
+                } else {        
+                return false;
+                }
+            }
+            else{
+                return false;
+            }
+        
+}
+
+public static function extractGz($file_name=null)
+{
+        //This input should be from somewhere else, hard-coded in this example
+    if(is_file($file_name)){
+        // Raising this value may increase performance
+        $buffer_size = 4096; // read 4kb at a time
+        $out_file_name = str_replace('.gz', '', $file_name);     
+        // Open our files (in binary mode)
+        $file = gzopen($file_name, 'rb');
+        $out_file = fopen($out_file_name, 'wb');     
+        // Keep repeating until the end of the input file
+        while (!gzeof($file)) {
+            // Read buffer-size bytes
+            // Both fwrite and gzread and binary-safe
+            fwrite($out_file, gzread($file, $buffer_size));
+        }    
+        // Files are done, close files
+        fclose($out_file);
+        gzclose($file);
+        unlink($file_name);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+public static function extractTar($file=null)
+{
+       $path = pathinfo(realpath($file), PATHINFO_DIRNAME);
+        try {
+            $phar = new PharData($file);
+            $phar->extractTo($path); // extract all files
+            unlink($file);
+        } catch (Exception $e) {
+            // handle errors
+        }
+}
+
+
+public static function extractTarGz($file=null)
+{
+    
+        $path = pathinfo(realpath($file), PATHINFO_DIRNAME);
+        try {
+            $phar = new PharData($file);
+            $phar->decompress(); // creates /path/to/my.tar
+
+            $phar = new PharData($file);
+            $phar->extractTo($path); // extract all files
+            unlink($file);
+        } catch (Exception $e) {
+            // handle errors
+      
+    }
+}
+
 /**
  * 
  * @param string $path    file to delete from server
